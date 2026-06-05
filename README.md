@@ -31,8 +31,10 @@ Mỗi lần fetch (hoặc nạp file trên giao diện) lưu thành **một file
 ## 2. Quản lý kiến thức (`/`)
 
 - Xem danh sách file import đã nạp, nạp thêm file mới
+- **Nạp thủ công** — thả/chọn file **`.msg`** (Outlook) hoặc **`.eml`** (chuẩn RFC 822/MIME): hệ thống tự parse, giải mã tiêu đề/nội dung (UTF-8, base64, quoted-printable, đa charset), gom luồng theo chủ đề và lưu thành file import. Hoặc nạp trực tiếp `emails.json`.
 - Xem full luồng mail (from/to/cc/body), đánh tag tay
 - **🤖 AI phân loại**: LLM tự sinh tag + tóm tắt + giải pháp cho 1 luồng hoặc mọi luồng chưa có tag (ưu tiên dùng lại tag có sẵn, không ghi đè giải pháp đã nhập tay)
+- **🗑 Xóa kiến thức**: gỡ một luồng khỏi kho (ẩn khỏi danh sách + xóa tag/tóm tắt/giải pháp). Luồng đã xóa được ghi nhận theo `conversationId` trong `data/deleted.json` nên **không hiện lại** sau các lần nạp/quét sau.
 
 ## 3. Job quét mail gắn cờ
 
@@ -100,6 +102,17 @@ Lấy mail **gắn cờ (flagged)** qua Graph API, so khớp kho kiến thức (
 - Thống kê: tổng số, chờ xử lý, đã duyệt, đã gửi, có kiến thức khớp, theo tháng
 - Tìm kiếm theo tiêu đề / người gửi / nội dung / tag, lọc theo trạng thái
 - Xem lại nội dung đã trả lời từng mail
+
+## 5b. Báo cáo trực quan (`/report`)
+
+Biểu đồ thanh trực quan trên toàn bộ kho mail (đã gộp, khử trùng lặp), có **lọc theo khoảng thời gian** (ngày nhận mail):
+
+- **📤 Người gửi nhiều nhất** — top theo số mail đã gửi (`from`)
+- **📥 Người nhận nhiều nhất** — top theo số mail nhận được (`To` + `CC`, mỗi địa chỉ tính 1 lần/mail)
+- **📈 Số mail theo tháng** — phân bố mail trong khoảng đã chọn
+- Thẻ tổng quan: tổng số mail, số luồng, khoảng lọc đang áp dụng
+
+Chọn *Từ / Đến* rồi **🔍 Xem báo cáo** để lọc; **↺ Toàn bộ thời gian** để xem tất cả. API tương ứng: `GET /api/report?from=YYYY-MM-DD&to=YYYY-MM-DD`.
 
 ## 6. MCP server — tra cứu bằng Claude Code
 
@@ -184,6 +197,7 @@ Thấy danh sách 7 tool trả về là server hoạt động.
 - `data/imports/*.json` — các lần nạp email (mỗi lần một file)
 - `data/knowledge.json` — tag/summary/solution theo conversationId
 - `data/history.json` — lịch sử hỗ trợ (trạng thái, nháp, thời điểm gửi)
+- `data/deleted.json` — danh sách `conversationId` đã xóa khỏi kho kiến thức (để ẩn vĩnh viễn)
 
 ## Bảo mật
 

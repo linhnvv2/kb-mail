@@ -1,7 +1,17 @@
 import { NextResponse } from "next/server";
-import { readJson, writeJson } from "../../../lib/store.js";
+import { readJson, writeJson, deleteThread } from "../../../lib/store.js";
 
 export const dynamic = "force-dynamic";
+
+// Xóa một luồng khỏi kho kiến thức (ẩn khỏi danh sách + bỏ tag/summary/solution)
+export async function DELETE(req) {
+  const { conversationId } = await req.json();
+  if (!conversationId) {
+    return NextResponse.json({ error: "Thiếu conversationId" }, { status: 400 });
+  }
+  deleteThread(conversationId);
+  return NextResponse.json({ ok: true });
+}
 
 // Lưu tags / summary / solution cho một luồng
 export async function POST(req) {

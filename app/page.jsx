@@ -68,11 +68,11 @@ export default function KnowledgePage() {
     if (fileRef.current) fileRef.current.value = "";
   }
 
-  // Thủ công: thả/chọn nhiều file .msg -> server parse về JSON chuẩn -> lưu import
+  // Thủ công: thả/chọn nhiều file .msg/.eml -> server parse về JSON chuẩn -> lưu import
   async function uploadMsg(e) {
     const files = [...(e.target.files || [])];
     if (files.length === 0) return;
-    setMsg(`Đang xử lý ${files.length} file .msg...`);
+    setMsg(`Đang xử lý ${files.length} file...`);
     try {
       const fd = new FormData();
       files.forEach((f) => fd.append("files", f));
@@ -80,12 +80,12 @@ export default function KnowledgePage() {
       const out = await res.json();
       if (out.error) throw new Error(out.error);
       setMsg(
-        `Đã nạp ${out.messages} mail (.msg) thành ${out.count} luồng → ${out.file}.` +
+        `Đã nạp ${out.messages} mail thành ${out.count} luồng → ${out.file}.` +
           (out.errors?.length ? ` Bỏ qua ${out.errors.length} file lỗi.` : "")
       );
       await load();
     } catch (err) {
-      setMsg("Lỗi nạp .msg: " + err.message);
+      setMsg("Lỗi nạp file: " + err.message);
     }
     if (msgRef.current) msgRef.current.value = "";
   }
@@ -121,6 +121,29 @@ export default function KnowledgePage() {
     await load();
     setSaving(false);
     setMsg("Đã lưu.");
+  }
+
+  // Xóa luồng khỏi kho kiến thức (ẩn khỏi danh sách + bỏ tag/summary/giải pháp)
+  async function deleteKb() {
+    if (!thread) return;
+    if (!confirm(`Xóa kiến thức của luồng "${thread.subject}" khỏi kho?\nLuồng sẽ bị ẩn và không hiện lại sau các lần nạp/quét sau.`))
+      return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/kb", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: thread.conversationId }),
+      });
+      const out = await res.json();
+      if (out.error) throw new Error(out.error);
+      setSelected(null);
+      await load();
+      setMsg("Đã xóa kiến thức khỏi kho.");
+    } catch (err) {
+      setMsg("Lỗi xóa: " + err.message);
+    }
+    setSaving(false);
   }
 
   async function classify(all = false) {
@@ -174,13 +197,13 @@ export default function KnowledgePage() {
           <div>
             <span className="label" style={{ marginTop: 0 }}>📥 Thủ công</span>
             <p className="muted" style={{ margin: "0 0 8px" }}>
-              Thả/chọn các file <b>.msg</b> từ Outlook, hệ thống tự chuẩn hóa về JSON.
+              Thả/chọn các file <b>.msg</b> hoặc <b>.eml</b> từ Outlook, hệ thống tự chuẩn hóa về JSON.
             </p>
             <div className="row">
               <button className="ghost" onClick={() => msgRef.current?.click()}>
-                📂 Chọn file .msg
+                📂 Chọn file .msg / .eml
               </button>
-              <input ref={msgRef} type="file" accept=".msg" multiple hidden onChange={uploadMsg} />
+              <input ref={msgRef} type="file" accept=".msg,.eml" multiple hidden onChange={uploadMsg} />
               <button className="ghost" onClick={() => fileRef.current?.click()}>
                 🧩 Nạp emails.json
               </button>
@@ -258,6 +281,15 @@ export default function KnowledgePage() {
               <div className="row" style={{ marginTop: 10 }}>
                 <button className="ghost" disabled={classifying} onClick={() => classify(false)}>
                   {classifying ? "AI đang phân loại..." : "🤖 AI phân loại luồng này"}
+                </button>
+                <button
+                  className="ghost"
+                  disabled={saving}
+                  style={{ marginLeft: "auto", color: "#c0392b" }}
+                  onClick={deleteKb}
+                  title="Xóa luồng này khỏi kho kiến thức"
+                >
+                  🗑 Xóa kiến thức
                 </button>
               </div>
 

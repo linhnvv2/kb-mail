@@ -6,6 +6,7 @@ const LINKS = [
   ["/", "Quản lý kiến thức"],
   ["/suggestions", "Hỗ trợ trả lời"],
   ["/history", "Lịch sử & báo cáo"],
+  ["/report", "Báo cáo trực quan"],
 ];
 
 export default function Nav() {
