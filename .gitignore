@@ -1,0 +1,8 @@
+node_modules/
+.next/
+.env
+data/emails.json
+data/knowledge.json
+data/suggestions.json
+data/history.json
+data/imports/
