@@ -8,7 +8,11 @@
     "start": "next start",
     "fetch-emails": "node scripts/fetch-emails.mjs",
     "job": "node scripts/flag-job.mjs",
-    "job:watch": "node scripts/flag-job.mjs --watch"
+    "job:watch": "node scripts/flag-job.mjs --watch",
+    "job:bg": "pm2 start ecosystem.config.cjs",
+    "job:bg:stop": "pm2 stop kb-mail-job",
+    "job:bg:logs": "pm2 logs kb-mail-job",
+    "mcp": "node mcp/server.mjs"
   },
   "dependencies": {
     "@kenjiuno/msgreader": "^1.28.0",
