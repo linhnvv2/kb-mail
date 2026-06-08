@@ -7,5 +7,6 @@ data/suggestions.json
 data/history.json
 data/deleted.json
 data/users.json
+data/settings.json
 data/imports/
 data/logs/

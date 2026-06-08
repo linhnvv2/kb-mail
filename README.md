@@ -12,7 +12,7 @@ npm run user add admin 'MatKhauManh' 'Quản trị viên'   # tạo tài khoản
 npm run dev            # mở http://localhost:3000 (sẽ chuyển tới /login)
 ```
 
-**GRAPH_TOKEN**: access token Microsoft Graph (delegated), scope `Mail.Read` + `Mail.Send`. Lấy nhanh từ [Graph Explorer](https://developer.microsoft.com/graph/graph-explorer) (tab Access token). Token sống ~1 giờ; chạy production nên đăng ký Azure AD app + refresh token.
+**GRAPH_TOKEN**: access token Microsoft Graph (delegated), scope `Mail.Read` + `Mail.Send`. Lấy nhanh từ [Graph Explorer](https://developer.microsoft.com/graph/graph-explorer) (tab Access token). Token sống ~1 giờ; chạy production nên đăng ký Azure AD app + refresh token. Khi token hết hạn, admin có thể **dán token mới ngay trong trang Quản trị** (mục 🔐 GRAPH_TOKEN) — có hiệu lực tức thì, không cần sửa `.env` hay restart. Token cập nhật lưu ở `data/settings.json` (đã `.gitignore`) và được ưu tiên hơn giá trị trong `.env`.
 
 **LLM** (AI chat + tự phân loại): mọi API tương thích OpenAI.
 
@@ -47,7 +47,7 @@ npm run job:watch    # lặp mỗi JOB_INTERVAL_MINUTES phút (chiếm terminal)
 
 ### Chạy nền với pm2 (background)
 
-[pm2](https://pm2.keymetrics.io/) là trình quản lý tiến trình Node giúp job chạy ngầm, không chiếm terminal, tự bật lại khi crash. Cấu hình nằm ở [`ecosystem.config.cjs`](ecosystem.config.cjs) (tên tiến trình: `kb-mail-job`).
+[pm2](https://pm2.keymetrics.io/) là trình quản lý tiến trình Node giúp chạy ngầm, không chiếm terminal, tự bật lại khi crash. Cấu hình nằm ở [`ecosystem.config.cjs`](ecosystem.config.cjs) — gồm **2 tiến trình**: `kb-mail-web` (web app Next) và `kb-mail-job` (job quét mail). `pm2 start ecosystem.config.cjs` chạy cả hai; thêm `--only kb-mail-job` (hoặc `--only kb-mail-web`) để chạy riêng một cái.
 
 **1. Cài pm2 (1 lần duy nhất, toàn máy):**
 
@@ -90,6 +90,32 @@ pm2 save                  # lưu danh sách tiến trình hiện tại
 
 - `pm2 list` thấy `status` là `errored` hoặc số `↺` (restart) tăng liên tục → xem `pm2 logs kb-mail-job` để tìm lỗi (thường do `GRAPH_TOKEN` hết hạn hoặc cấu hình LLM sai trong `.env`).
 - Sửa `.env` xong job vẫn dùng giá trị cũ → phải `pm2 restart kb-mail-job` (pm2 nạp env lúc khởi động).
+
+### Chạy web app nền (production) với pm2 — đổi port
+
+Tiến trình `kb-mail-web` chạy bản production của Next (`next start`) nên **phải build trước**, và mặc định lắng nghe **port 8087**.
+
+```bash
+npm run build                                   # bắt buộc — next start cần bản build
+pm2 start ecosystem.config.cjs --only kb-mail-web   # chạy nền web app
+# mở http://localhost:8087
+```
+
+**Đổi port:** sửa dòng `const PORT = process.env.PORT || 8087;` ở đầu [`ecosystem.config.cjs`](ecosystem.config.cjs), hoặc đặt biến môi trường khi khởi động:
+
+```bash
+PORT=9000 pm2 start ecosystem.config.cjs --only kb-mail-web
+```
+
+**Quản lý:**
+
+```bash
+pm2 logs kb-mail-web                # log web realtime (data/logs/web-*.log)
+pm2 restart kb-mail-web             # nạp lại sau mỗi lần npm run build / sửa code
+pm2 restart kb-mail-web --update-env  # nạp lại kèm biến môi trường mới (vd đổi PORT)
+```
+
+> Lưu ý: mỗi lần sửa code phải `npm run build` rồi `pm2 restart kb-mail-web` mới có hiệu lực. `npm run dev` (port 3000) chỉ dùng khi phát triển, không chạy dưới pm2.
 
 Lấy mail **gắn cờ (flagged)** qua Graph API, so khớp kho kiến thức (tag + từ khóa subject/summary), ghi vào lịch sử hỗ trợ với trạng thái `pending`. Nháp trả lời được điền sẵn từ giải pháp khớp nhất.
 

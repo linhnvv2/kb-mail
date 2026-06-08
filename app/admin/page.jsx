@@ -15,13 +15,65 @@ export default function AdminPage() {
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
   const [pwMsg, setPwMsg] = useState("");
   const [pwBusy, setPwBusy] = useState(false);
+  // Cập nhật GRAPH_TOKEN
+  const [gToken, setGToken] = useState("");
+  const [gStatus, setGStatus] = useState(null);
+  const [gMsg, setGMsg] = useState("");
+  const [gBusy, setGBusy] = useState(false);
+  const [gTesting, setGTesting] = useState(false);
 
   async function load() {
     const res = await fetch("/api/users");
     const out = await res.json();
     if (!out.error) setUsers(out.users);
   }
-  useEffect(() => { load(); }, []);
+  async function loadGraph() {
+    const res = await fetch("/api/settings/graph-token");
+    const out = await res.json();
+    if (!out.error) setGStatus(out.status);
+  }
+  useEffect(() => { load(); loadGraph(); }, []);
+
+  async function saveGraphToken(e) {
+    e.preventDefault();
+    setGMsg("");
+    if (!gToken.trim()) { setGMsg("Lỗi: Token rỗng."); return; }
+    setGBusy(true);
+    try {
+      const res = await fetch("/api/settings/graph-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: gToken.trim() }),
+      });
+      const out = await res.json();
+      if (out.error) throw new Error(out.error);
+      setGStatus(out.status);
+      setGToken("");
+      setGMsg(out.probe?.ok
+        ? `✅ Đã lưu & kết nối OK (tài khoản: ${out.probe.account}).`
+        : `⚠️ Đã lưu nhưng kết nối thất bại: ${out.probe?.error || "không rõ"}.`);
+    } catch (err) {
+      setGMsg("Lỗi: " + err.message);
+    }
+    setGBusy(false);
+  }
+
+  async function testGraphToken() {
+    setGMsg("");
+    setGTesting(true);
+    try {
+      const res = await fetch("/api/settings/graph-token?test=1");
+      const out = await res.json();
+      if (out.error) throw new Error(out.error);
+      setGStatus(out.status);
+      setGMsg(out.probe?.ok
+        ? `✅ Kết nối OK (tài khoản: ${out.probe.account}).`
+        : `❌ Kết nối thất bại: ${out.probe?.error || "không rõ"}.`);
+    } catch (err) {
+      setGMsg("Lỗi: " + err.message);
+    }
+    setGTesting(false);
+  }
 
   function resetForm() {
     setForm(EMPTY);
@@ -175,13 +227,14 @@ export default function AdminPage() {
       <form className="card" style={{ marginBottom: 14 }} onSubmit={changePassword}>
         <b>🔑 Đổi mật khẩu của tôi</b>
         <div className="admin-grid" style={{ marginTop: 10 }}>
-          <div>
+          <div style={{ gridColumn: "1 / -1" }}>
             <span className="label" style={{ marginTop: 0 }}>Mật khẩu hiện tại</span>
             <input
               type="password"
               value={pw.current}
               onChange={(e) => setPw((p) => ({ ...p, current: e.target.value }))}
               placeholder="Mật khẩu đang dùng"
+              style={{ maxWidth: "calc(50% - 8px)" }}
             />
           </div>
           <div>
@@ -211,8 +264,45 @@ export default function AdminPage() {
         {pwMsg && <div className="notice" style={{ marginTop: 12 }}>{pwMsg}</div>}
       </form>
 
+      <form className="card" style={{ marginBottom: 14 }} onSubmit={saveGraphToken}>
+        <b>🔐 GRAPH_TOKEN (Microsoft Graph)</b>
+        <p className="muted" style={{ margin: "6px 0 0" }}>
+          Token truy cập Graph (delegated, scope Mail.Read / Mail.Send). Cập nhật ở đây có hiệu lực
+          ngay, không cần khởi động lại. Lấy nhanh từ{" "}
+          <a href="https://developer.microsoft.com/graph/graph-explorer" target="_blank" rel="noreferrer">Graph Explorer</a>.
+        </p>
+
+        <div className="notice" style={{ marginTop: 10 }}>
+          {gStatus
+            ? (gStatus.set
+                ? <>Hiện tại: <code>{gStatus.masked}</code> · nguồn: <b>{gStatus.source === "settings" ? "đã cập nhật" : ".env"}</b>
+                    {gStatus.updatedAt && <> · cập nhật: {new Date(gStatus.updatedAt).toLocaleString("vi-VN")}{gStatus.updatedBy ? ` bởi ${gStatus.updatedBy}` : ""}</>}</>
+                : <span style={{ color: "#c0392b" }}>Chưa có token — Graph chưa hoạt động.</span>)
+            : "Đang tải trạng thái…"}
+        </div>
+
+        <span className="label">Token mới</span>
+        <textarea
+          value={gToken}
+          onChange={(e) => setGToken(e.target.value)}
+          placeholder="Dán access token mới vào đây…"
+          rows={4}
+          style={{ width: "100%", fontFamily: "monospace", fontSize: 12 }}
+        />
+        <div className="row" style={{ marginTop: 12 }}>
+          <button className="primary" type="submit" disabled={gBusy}>
+            {gBusy ? "Đang lưu…" : "💾 Lưu & kiểm tra"}
+          </button>
+          <button type="button" className="ghost" onClick={testGraphToken} disabled={gTesting || !gStatus?.set}>
+            {gTesting ? "Đang kiểm tra…" : "🔌 Kiểm tra kết nối"}
+          </button>
+        </div>
+        {gMsg && <div className="notice" style={{ marginTop: 12 }}>{gMsg}</div>}
+      </form>
+
       <div className="card">
         <b>Danh sách tài khoản ({users.length})</b>
+        <div className="table-scroll">
         <table className="user-table">
           <thead>
             <tr><th>Tài khoản</th><th>Tên</th><th>Vai trò</th><th>Menu được phép</th><th></th></tr>
@@ -238,6 +328,7 @@ export default function AdminPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

@@ -37,7 +37,7 @@ export async function middleware(req) {
   };
 
   // Vùng quản trị
-  if (pathname === "/admin" || pathname.startsWith("/api/users")) {
+  if (pathname === "/admin" || pathname.startsWith("/api/users") || pathname.startsWith("/api/settings")) {
     return isAdmin ? NextResponse.next() : deny();
   }
 

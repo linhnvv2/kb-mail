@@ -45,6 +45,7 @@ body {
 .topnav {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 12px 28px;
   background: linear-gradient(100deg, #14213d 0%, #1c2e54 55%, #243a6b 100%);
@@ -53,6 +54,13 @@ body {
   position: sticky;
   top: 0;
   z-index: 50;
+}
+@media (max-width: 640px) {
+  .topnav { padding: 10px 14px; gap: 4px; }
+  .topnav a { font-size: 13.5px; padding: 6px 11px; }
+  .brand { margin-right: 8px; font-size: 15px; width: 100%; }
+  /* Tên user + nút đăng xuất xuống hàng riêng, canh trái cho gọn */
+  .nav-user { margin-left: 0; width: 100%; justify-content: flex-end; }
 }
 .topnav a {
   color: #c5d2ee;
@@ -100,6 +108,7 @@ body {
 }
 
 .container { max-width: 100%; margin: 28px 0; padding: 0 28px; animation: fadeIn .35s ease; }
+@media (max-width: 640px) { .container { margin: 18px 0; padding: 0 14px; } }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
@@ -110,6 +119,7 @@ body {
 .layout { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 18px; align-items: start; }
 /* min-width:0 để cột chi tiết không bị nội dung dài (URL...) đẩy phình ra, gây lệch layout */
 .layout > * { min-width: 0; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -377,7 +387,9 @@ h3 { margin: 0 0 6px; font-size: 17px; font-weight: 700; }
 .menu-check.on { background: var(--primary-soft); border-color: #b9cdfb; color: var(--primary-dark); font-weight: 600; }
 .menu-check input { accent-color: var(--primary); }
 
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .user-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13.5px; }
+@media (max-width: 640px) { .user-table { min-width: 520px; } }
 .user-table th, .user-table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
 .user-table th { color: var(--text-soft); font-size: 12.5px; font-weight: 600; }
 .user-table td .tag { margin: 2px 4px 2px 0; }
