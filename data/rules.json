@@ -1,0 +1,23 @@
+{
+  "scanIntervalMinutes": 2,
+  "scanSource": "flagged",
+  "scanFolder": "Inbox",
+  "rules": [
+    {
+      "id": "r_mq4p2ir2_0",
+      "name": "Rule 1",
+      "enabled": false,
+      "match": "any",
+      "conditions": {
+        "tags": [],
+        "subjectContains": [],
+        "fromContains": []
+      },
+      "action": "draft",
+      "to": [],
+      "cc": [],
+      "requireKnowledgeMatch": false,
+      "unflagAfterSend": true
+    }
+  ]
+}

@@ -82,7 +82,7 @@ pm2 startup               # in ra 1 lệnh — copy & chạy lại lệnh đó (
 pm2 save                  # lưu danh sách tiến trình hiện tại
 ```
 
-**Chu kỳ chạy:** lấy từ `JOB_INTERVAL_MINUTES` trong `.env` (mặc định 10 phút). Đổi xong nhớ `pm2 restart kb-mail-job` để áp dụng.
+**Chu kỳ chạy:** ưu tiên **"⏱ Chu kỳ quét tự động"** đặt trên trang [Cấu hình rule tự động](#4b-cấu-hình-rule-tự-động-rules) (lưu ở `rules.json`) — job watch đọc lại mỗi vòng nên **đổi là áp dụng ngay vòng kế tiếp, không cần restart**. Nếu chưa đặt thì dùng `JOB_INTERVAL_MINUTES` trong `.env` (mặc định 10 phút).
 
 **Log:** ghi vào `data/logs/job-out.log` (stdout) và `data/logs/job-err.log` (stderr), có gắn timestamp. Thư mục `data/logs/` đã được `.gitignore`.
 
@@ -99,10 +99,41 @@ Lấy mail **gắn cờ (flagged)** qua Graph API, so khớp kho kiến thức (
 - Quy trình duyệt: sửa nháp → **✔ Duyệt OK** → nút **📧 Gửi mail** mới mở → reply vào đúng luồng qua Graph
 - Trạng thái: `pending` → `approved` → `sent`
 
+## 4b. Cấu hình rule tự động (`/rules`)
+
+Trang **⚙️ Cấu hình rule tự động** cho phép đặt các **rule**: khi job quét mail gắn cờ, mỗi mail được xét lần lượt theo danh sách rule (từ trên xuống) — **rule khớp đầu tiên** quyết định hành động. Áp dụng cho **cả job nền (pm2) lẫn nút quét trên trang Hỗ trợ trả lời**.
+
+**📥 Quét thêm Inbox** — mail gắn cờ **luôn được xử lý**; bật thêm tùy chọn này (checkbox) để quét cả mail **chưa đọc** trong folder cấu hình (mặc định `Inbox`) và áp rule. Ràng buộc an toàn ở chế độ inbox: rule **chỉ soạn + lưu nháp** (không bao giờ tự gửi, kể cả rule "GỬI THẬT"); chỉ xét mail **chưa đọc nhận trong hôm nay** (từ 0h theo giờ máy chủ); **mỗi mail xử lý 1 lần** (dedup theo `messageId`); tối đa **15 mail/vòng** (phần dư xử lý ở vòng sau, có log).
+
+**⏱ Chu kỳ quét tự động** — đặt job nền quét 1 lần mỗi bao nhiêu phút. Job watch đọc lại mỗi vòng nên đổi là áp dụng ngay vòng kế tiếp (không cần restart pm2). Bỏ trống/để mặc định thì dùng `JOB_INTERVAL_MINUTES` trong `.env`.
+
+**Điều kiện của một rule** (chỉ xét nhóm có nhập; kết hợp `BẤT KỲ` / `TẤT CẢ`):
+
+- **🏷 Tag (AI phân loại)** — khớp khi mail khớp kiến thức mang một trong các tag chỉ định
+- **📌 Chủ đề (subject)** — tiêu đề mail chứa một trong các từ khóa
+- **👤 Người gửi / email** — địa chỉ người gửi chứa chuỗi (vd `@fpt.com`, `hr@`)
+
+**Hành động khi khớp:**
+
+- **Không tự xử lý** — giữ ở `pending` để duyệt tay như cũ
+- **📝 Tự soạn AI + lưu nháp** — LLM soạn nội dung trả lời, lưu nháp vào Outlook (trạng thái `ai_drafted`); người dùng vẫn Duyệt OK rồi gửi
+- **📧 Tự soạn AI + GỬI THẬT** — soạn rồi **gửi reply vào luồng ngay, không cần Duyệt OK**
+
+**An toàn:**
+
+- Hành động do **chính rule** quyết định: để mặc định là *lưu nháp*; chỉ chọn *GỬI THẬT* cho rule đã kiểm thử kỹ (trên trang có cảnh báo đỏ).
+- Mỗi rule có **"Chỉ tự xử lý khi có kiến thức khớp"** (mặc định bật) và (với gửi thật) **"Bỏ cờ sau khi gửi"**.
+- Mọi lần tự xử lý ghi `ruleName` + `autoSent` vào lịch sử (xem ở `/history`) và in log ở job nền (`data/logs/`).
+- Đã xử lý rồi sẽ không lặp lại ở lần quét sau (idempotent theo `messageId`).
+
+Cấu hình lưu ở `data/rules.json`. API: `GET /api/rules`, `PUT /api/rules`.
+
 ## 5. Lịch sử & báo cáo (`/history`)
 
-- Thống kê: tổng số, chờ xử lý, đã duyệt, đã gửi, có kiến thức khớp, theo tháng
-- Tìm kiếm theo tiêu đề / người gửi / nội dung / tag, lọc theo trạng thái
+- Thống kê: tổng số, chờ xử lý, đã duyệt, đã gửi, có kiến thức khớp, **tự xử lý bởi rule**, **rule tự gửi thật**, theo tháng
+- **🤖 Hỗ trợ theo rule**: mỗi rule kèm số mail đã xử lý (📝 nháp / 📤 gửi); bấm vào để lọc ra **danh sách email do rule đó xử lý**. Nút "Xem tất cả mail do rule xử lý" gộp mọi rule.
+- Mỗi mail do rule xử lý có badge `🤖 <tên rule> · 📝 nháp / 📤 tự gửi`
+- Tìm kiếm theo tiêu đề / người gửi / nội dung / tag / **tên rule**, lọc theo trạng thái
 - Xem lại nội dung đã trả lời từng mail
 
 ## 5b. Báo cáo trực quan (`/report`)
@@ -210,13 +241,13 @@ Toàn bộ trang và API được bảo vệ bằng `middleware.js`: chưa đăn
 **Vai trò:**
 
 - **admin** — toàn quyền mọi menu + trang **⚙️ Quản trị** (`/admin`) để tạo/sửa/xóa tài khoản và gán quyền menu cho user.
-- **user** — chỉ thấy và vào được các menu (trong 4 menu) được admin gán. Truy cập menu ngoài quyền: trang bị chuyển về menu đầu tiên được phép, API trả `403`.
+- **user** — chỉ thấy và vào được các menu (trong 5 menu) được admin gán. Truy cập menu ngoài quyền: trang bị chuyển về menu đầu tiên được phép, API trả `403`.
 
 **Tạo & gán quyền:** dùng trang **/admin** (giao diện) — chọn vai trò, tích các menu cho phép. Hoặc dùng CLI:
 
 ```bash
 npm run user admin <username> <password> [tên]   # tạo admin (toàn quyền)
-npm run user add   <username> <password> [tên]   # tạo user (mặc định đủ 4 menu — chỉnh tại /admin)
+npm run user add   <username> <password> [tên]   # tạo user (mặc định đủ 5 menu — chỉnh tại /admin)
 npm run user list                                 # liệt kê (kèm vai trò & menu)
 npm run user del   <username>                     # xóa
 ```
@@ -224,6 +255,7 @@ npm run user del   <username>                     # xóa
 - Mật khẩu băm **scrypt + muối**, lưu trong `data/users.json` (không commit).
 - Quyền nằm trong token phiên → **đổi quyền có hiệu lực sau khi user đăng nhập lại**.
 - Đổi `AUTH_SECRET` trong `.env` sẽ **vô hiệu mọi phiên** đang đăng nhập.
+- **Đổi mật khẩu của chính mình**: trang **/admin** có mục **🔑 Đổi mật khẩu của tôi** (nhập mật khẩu hiện tại + mật khẩu mới ≥ 6 ký tự). API: `POST /api/auth/password`. Admin vẫn có thể đặt lại mật khẩu cho bất kỳ tài khoản nào qua form Sửa.
 - Đăng xuất bằng nút trên thanh điều hướng (góc phải).
 
 ## Dữ liệu

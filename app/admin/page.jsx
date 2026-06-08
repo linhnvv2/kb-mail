@@ -11,6 +11,10 @@ export default function AdminPage() {
   const [editing, setEditing] = useState(false); // đang sửa user có sẵn?
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  // Đổi mật khẩu của chính mình
+  const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
+  const [pwMsg, setPwMsg] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
 
   async function load() {
     const res = await fetch("/api/users");
@@ -58,6 +62,28 @@ export default function AdminPage() {
       setMsg("Lỗi: " + err.message);
     }
     setBusy(false);
+  }
+
+  async function changePassword(e) {
+    e.preventDefault();
+    setPwMsg("");
+    if (pw.next.length < 6) { setPwMsg("Lỗi: Mật khẩu mới tối thiểu 6 ký tự."); return; }
+    if (pw.next !== pw.confirm) { setPwMsg("Lỗi: Xác nhận mật khẩu không khớp."); return; }
+    setPwBusy(true);
+    try {
+      const res = await fetch("/api/auth/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: pw.current, newPassword: pw.next }),
+      });
+      const out = await res.json();
+      if (out.error) throw new Error(out.error);
+      setPwMsg("✅ Đã đổi mật khẩu.");
+      setPw({ current: "", next: "", confirm: "" });
+    } catch (err) {
+      setPwMsg("Lỗi: " + err.message);
+    }
+    setPwBusy(false);
   }
 
   async function remove(username) {
@@ -144,6 +170,45 @@ export default function AdminPage() {
           {editing && <button type="button" className="ghost" onClick={resetForm}>Hủy</button>}
         </div>
         {msg && <div className="notice" style={{ marginTop: 12 }}>{msg}</div>}
+      </form>
+
+      <form className="card" style={{ marginBottom: 14 }} onSubmit={changePassword}>
+        <b>🔑 Đổi mật khẩu của tôi</b>
+        <div className="admin-grid" style={{ marginTop: 10 }}>
+          <div>
+            <span className="label" style={{ marginTop: 0 }}>Mật khẩu hiện tại</span>
+            <input
+              type="password"
+              value={pw.current}
+              onChange={(e) => setPw((p) => ({ ...p, current: e.target.value }))}
+              placeholder="Mật khẩu đang dùng"
+            />
+          </div>
+          <div>
+            <span className="label" style={{ marginTop: 0 }}>Mật khẩu mới</span>
+            <input
+              type="password"
+              value={pw.next}
+              onChange={(e) => setPw((p) => ({ ...p, next: e.target.value }))}
+              placeholder="Tối thiểu 6 ký tự"
+            />
+          </div>
+          <div>
+            <span className="label" style={{ marginTop: 0 }}>Xác nhận mật khẩu mới</span>
+            <input
+              type="password"
+              value={pw.confirm}
+              onChange={(e) => setPw((p) => ({ ...p, confirm: e.target.value }))}
+              placeholder="Nhập lại mật khẩu mới"
+            />
+          </div>
+        </div>
+        <div className="row" style={{ marginTop: 12 }}>
+          <button className="primary" type="submit" disabled={pwBusy}>
+            {pwBusy ? "Đang đổi..." : "🔑 Đổi mật khẩu"}
+          </button>
+        </div>
+        {pwMsg && <div className="notice" style={{ marginTop: 12 }}>{pwMsg}</div>}
       </form>
 
       <div className="card">
