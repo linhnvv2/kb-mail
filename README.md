@@ -6,8 +6,10 @@ Quy trình: **đọc mail theo folder → gom full luồng → đánh tag / AI t
 
 ```bash
 npm install
-cp .env.example .env   # điền GRAPH_TOKEN, MAIL_FOLDER, cấu hình LLM
-npm run dev            # mở http://localhost:3000
+cp .env.example .env   # điền GRAPH_TOKEN, MAIL_FOLDER, cấu hình LLM, AUTH_SECRET
+node -e "console.log('AUTH_SECRET='+require('crypto').randomBytes(32).toString('hex'))" >> .env  # sinh khóa ký phiên
+npm run user add admin 'MatKhauManh' 'Quản trị viên'   # tạo tài khoản đăng nhập đầu tiên
+npm run dev            # mở http://localhost:3000 (sẽ chuyển tới /login)
 ```
 
 **GRAPH_TOKEN**: access token Microsoft Graph (delegated), scope `Mail.Read` + `Mail.Send`. Lấy nhanh từ [Graph Explorer](https://developer.microsoft.com/graph/graph-explorer) (tab Access token). Token sống ~1 giờ; chạy production nên đăng ký Azure AD app + refresh token.
@@ -114,6 +116,15 @@ Biểu đồ thanh trực quan trên toàn bộ kho mail (đã gộp, khử trù
 
 Chọn *Từ / Đến* rồi **🔍 Xem báo cáo** để lọc; **↺ Toàn bộ thời gian** để xem tất cả. API tương ứng: `GET /api/report?from=YYYY-MM-DD&to=YYYY-MM-DD`.
 
+## 5c. Bot gia sư (trợ lý nổi 🎓)
+
+Nút chat nổi ở góc dưới-phải **mọi trang**. Hỏi đáp tự nhiên về kho kiến thức:
+
+- Câu hỏi được so khớp với kho (cùng thuật toán của job) để lấy các luồng liên quan nhất, đưa vào ngữ cảnh LLM → trả lời **bám dữ liệu thật**, kèm danh sách **nguồn** (các luồng đã dùng).
+- Nếu kho chưa có thông tin, bot nói thẳng và gợi ý nạp thêm/đánh tag (không bịa).
+- Có sẵn vài câu hỏi gợi ý khi mở lần đầu. Dùng chung cấu hình LLM trong `.env`. API: `POST /api/tutor` `{ question, chatHistory }`.
+- **Phóng to/thu nhỏ** (🗖/🗗) cửa sổ chat; **nhiều hội thoại** lưu trong trình duyệt (localStorage): ✚ mở hội thoại mới, 🕘 xem lịch sử, xóa từng hội thoại hoặc **🗑 Xóa tất cả**.
+
 ## 6. MCP server — tra cứu bằng Claude Code
 
 [`mcp/server.mjs`](mcp/server.mjs) là một **MCP server** (JSON-RPC qua stdio, không thêm dependency) cho phép Claude Code (hoặc client MCP bất kỳ) truy vấn trực tiếp kho kiến thức, lịch sử hỗ trợ và thông tin job quét cờ.
@@ -192,15 +203,44 @@ printf '%s\n' \
 
 Thấy danh sách 7 tool trả về là server hoạt động.
 
+## Đăng nhập & phân quyền
+
+Toàn bộ trang và API được bảo vệ bằng `middleware.js`: chưa đăng nhập sẽ bị chuyển tới `/login` (API trả `401`). Phiên đăng nhập là cookie `kb_session` **httpOnly**, ký **HMAC-SHA256** bằng `AUTH_SECRET`, mang theo **vai trò + danh sách menu được phép**, mặc định sống 7 ngày.
+
+**Vai trò:**
+
+- **admin** — toàn quyền mọi menu + trang **⚙️ Quản trị** (`/admin`) để tạo/sửa/xóa tài khoản và gán quyền menu cho user.
+- **user** — chỉ thấy và vào được các menu (trong 4 menu) được admin gán. Truy cập menu ngoài quyền: trang bị chuyển về menu đầu tiên được phép, API trả `403`.
+
+**Tạo & gán quyền:** dùng trang **/admin** (giao diện) — chọn vai trò, tích các menu cho phép. Hoặc dùng CLI:
+
+```bash
+npm run user admin <username> <password> [tên]   # tạo admin (toàn quyền)
+npm run user add   <username> <password> [tên]   # tạo user (mặc định đủ 4 menu — chỉnh tại /admin)
+npm run user list                                 # liệt kê (kèm vai trò & menu)
+npm run user del   <username>                     # xóa
+```
+
+- Mật khẩu băm **scrypt + muối**, lưu trong `data/users.json` (không commit).
+- Quyền nằm trong token phiên → **đổi quyền có hiệu lực sau khi user đăng nhập lại**.
+- Đổi `AUTH_SECRET` trong `.env` sẽ **vô hiệu mọi phiên** đang đăng nhập.
+- Đăng xuất bằng nút trên thanh điều hướng (góc phải).
+
 ## Dữ liệu
 
 - `data/imports/*.json` — các lần nạp email (mỗi lần một file)
 - `data/knowledge.json` — tag/summary/solution theo conversationId
 - `data/history.json` — lịch sử hỗ trợ (trạng thái, nháp, thời điểm gửi)
 - `data/deleted.json` — danh sách `conversationId` đã xóa khỏi kho kiến thức (để ẩn vĩnh viễn)
+- `data/users.json` — tài khoản đăng nhập (mật khẩu băm scrypt)
 
 ## Bảo mật
 
 - Không commit `.env` và `data/` (đã có `.gitignore`)
 - Token Graph cho quyền đọc/gửi mail — chỉ dán vào `.env` trên máy tin cậy
 - Mail chỉ được gửi khi người dùng đã Duyệt OK và xác nhận
+- Đăng nhập bắt buộc cho mọi trang/API; mật khẩu băm scrypt, phiên ký HMAC bằng `AUTH_SECRET`
+
+
+Tài khoản: admin
+Mật khẩu:  Admin@123

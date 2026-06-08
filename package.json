@@ -12,7 +12,8 @@
     "job:bg": "pm2 start ecosystem.config.cjs",
     "job:bg:stop": "pm2 stop kb-mail-job",
     "job:bg:logs": "pm2 logs kb-mail-job",
-    "mcp": "node mcp/server.mjs"
+    "mcp": "node mcp/server.mjs",
+    "user": "node scripts/user.mjs"
   },
   "dependencies": {
     "@kenjiuno/msgreader": "^1.28.0",
