@@ -55,12 +55,77 @@ body {
   top: 0;
   z-index: 50;
 }
-@media (max-width: 640px) {
-  .topnav { padding: 10px 14px; gap: 4px; }
-  .topnav a { font-size: 13.5px; padding: 6px 11px; }
-  .brand { margin-right: 8px; font-size: 15px; width: 100%; }
-  /* Tên user + nút đăng xuất xuống hàng riêng, canh trái cho gọn */
-  .nav-user { margin-left: 0; width: 100%; justify-content: flex-end; }
+/* Desktop: thanh trái (brand) và menu nằm cùng 1 hàng ngang */
+.topnav-bar { display: contents; }
+.topnav-menu { display: contents; }
+/* Nút ☰ chỉ hiện ở mobile */
+.nav-toggle { display: none; }
+
+@media (max-width: 760px) {
+  .topnav {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+  }
+  /* Hàng trên cùng: brand bên trái, nút ☰ bên phải */
+  .topnav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+  }
+  .brand { margin-right: 0; font-size: 16px; }
+  .nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .12);
+    color: #fff;
+    font-size: 19px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background .18s;
+  }
+  .nav-toggle:hover { background: rgba(255, 255, 255, .22); }
+
+  /* Menu sổ xuống từ góc trái: ẩn mặc định, mở khi .open */
+  .topnav-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    padding: 0 12px;
+    transition: max-height .28s ease, opacity .2s ease, padding .28s ease;
+  }
+  .topnav.open .topnav-menu {
+    max-height: 80vh;
+    opacity: 1;
+    padding: 6px 12px 14px;
+    border-top: 1px solid rgba(255, 255, 255, .1);
+  }
+  .topnav-menu a {
+    display: block;
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-size: 15px;
+  }
+  /* Tên user + đăng xuất nằm gọn ở cuối menu */
+  .nav-user {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 6px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, .1);
+  }
 }
 .topnav a {
   color: #c5d2ee;
