@@ -96,6 +96,31 @@ export default function SuggestionsPage() {
   const [autoInterval, setAutoInterval] = useState(5);
   const [autoBatch, setAutoBatch] = useState(3);
   const [autoStatus, setAutoStatus] = useState("");
+  const [taskDone, setTaskDone] = useState({}); // messageId -> đã tạo task
+
+  async function createTask(item) {
+    setBusy((b) => ({ ...b, [item.messageId]: true }));
+    try {
+      const draftText = draftFor(item);
+      const note = [
+        item.bodyPreview ? `📩 Nội dung mail:\n${item.bodyPreview}` : "",
+        draftText ? `\n\n✉️ Nội dung trả lời:\n${draftText}` : "",
+      ].join("").trim();
+      const r = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: item.subject || "(mail không tiêu đề)",
+          note, from: item.from, subject: item.subject,
+          messageId: item.messageId, conversationId: item.conversationId, status: "todo",
+        }),
+      });
+      const out = await r.json();
+      if (out.error) setError(out.error);
+      else setTaskDone((t) => ({ ...t, [item.messageId]: true }));
+    } catch (e) { setError(e.message); }
+    setBusy((b) => ({ ...b, [item.messageId]: false }));
+  }
 
   async function load() {
     const [s, t] = await Promise.all([
@@ -393,7 +418,16 @@ export default function SuggestionsPage() {
             )}
             <button
               className="ghost"
-              style={{ marginLeft: "auto", padding: "5px 12px" }}
+              style={{ marginLeft: "auto", padding: "5px 12px", borderColor: taskDone[item.messageId] ? "#16a34a" : undefined, color: taskDone[item.messageId] ? "#15803d" : undefined }}
+              disabled={busy[item.messageId] || taskDone[item.messageId]}
+              onClick={() => createTask(item)}
+              title="Lưu mail này thành task để xử lý sau (menu Task)"
+            >
+              {taskDone[item.messageId] ? "✅ Đã tạo task" : "🗂️ Tạo task"}
+            </button>
+            <button
+              className="ghost"
+              style={{ padding: "5px 12px" }}
               disabled={busy[item.messageId]}
               onClick={() => unflag(item)}
               title="Bỏ cờ mail này trong Outlook và gỡ khỏi danh sách"

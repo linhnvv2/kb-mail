@@ -37,6 +37,7 @@ export async function GET(req) {
     aiDrafted: all.filter((i) => i.status === "ai_drafted").length,
     approved: all.filter((i) => i.status === "approved").length,
     sent: all.filter((i) => i.status === "sent").length,
+    resolved: all.filter((i) => i.status === "resolved").length,
     dismissed: all.filter((i) => i.status === "dismissed").length,
     matched: all.filter((i) => (i.matches || []).length > 0).length,
     autoProcessed: all.filter((i) => !!i.ruleId).length, // tự xử lý bởi rule

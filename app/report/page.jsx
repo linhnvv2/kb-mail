@@ -27,17 +27,24 @@ export default function ReportPage() {
   const [to, setTo] = useState("");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [support, setSupport] = useState(null);
+  const [period, setPeriod] = useState("month");
 
   async function load() {
     setLoading(true);
     const params = new URLSearchParams();
     if (from) params.set("from", from);
     if (to) params.set("to", to);
-    const res = await fetch("/api/report?" + params.toString());
-    setData(await res.json());
+    const [rep, sup] = await Promise.all([
+      fetch("/api/report?" + params.toString()).then((r) => r.json()),
+      fetch("/api/report/support-stats?" + params.toString() + "&period=" + period).then((r) => r.json()),
+    ]);
+    setData(rep);
+    setSupport(sup);
     setLoading(false);
   }
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (support) load(); }, [period]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const months = Object.entries(data?.byMonth || {}).map(([name, count]) => ({ name, count }));
 
@@ -105,6 +112,63 @@ export default function ReportPage() {
         <b>📈 Số mail theo tháng</b>
         <p className="muted" style={{ margin: "2px 0 10px" }}>Phân bố mail nhận theo từng tháng trong khoảng đã chọn</p>
         <BarChart rows={months} color="var(--success)" empty="Chưa có mail trong khoảng này." />
+      </div>
+
+      {/* ===== Thống kê hoạt động HỖ TRỢ (cho tổng quản) ===== */}
+      <div className="card" style={{ marginTop: 20, borderTop: "3px solid var(--primary)" }}>
+        <div className="row" style={{ alignItems: "center" }}>
+          <b style={{ fontSize: 16 }}>🧑‍💼 Thống kê hỗ trợ — tổng quản</b>
+          <span style={{ marginLeft: "auto" }} className="muted">Xem theo:</span>
+          <button
+            className={period === "week" ? "primary" : "ghost"}
+            onClick={() => setPeriod("week")}
+          >
+            📆 Tuần
+          </button>
+          <button
+            className={period === "month" ? "primary" : "ghost"}
+            onClick={() => setPeriod("month")}
+          >
+            🗓️ Tháng
+          </button>
+        </div>
+        <p className="muted" style={{ margin: "6px 0 12px" }}>
+          Hoạt động hỗ trợ (mail đã tiếp nhận/xử lý) theo {period === "week" ? "tuần" : "tháng"}.
+        </p>
+
+        {/* Thẻ tổng quan hỗ trợ */}
+        <div className="row" style={{ marginBottom: 14 }}>
+          {[
+            ["Tổng mail hỗ trợ", support?.summary?.total ?? 0],
+            ["Đã trả lời (gửi)", support?.summary?.sent ?? 0],
+            ["AI soạn nháp", support?.summary?.aiDrafted ?? 0],
+            ["Tỉ lệ AI hỗ trợ", (support?.summary?.aiDraftRate ?? 0) + "%"],
+          ].map(([label, val]) => (
+            <div className="card" key={label} style={{ minWidth: 150, textAlign: "center" }}>
+              <div style={{ fontSize: 24, fontWeight: 700 }}>{val}</div>
+              <div className="muted">{label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="report-grid">
+          <div className="card">
+            <b>📊 Số mail hỗ trợ theo {period === "week" ? "tuần" : "tháng"}</b>
+            <p className="muted" style={{ margin: "2px 0 10px" }}>
+              Tổng quản nhìn nhanh: {period === "week" ? "tuần" : "tháng"} nào bận nhất
+            </p>
+            <BarChart
+              rows={Object.entries(support?.byPeriod || {}).map(([name, v]) => ({ name, count: v.total }))}
+              color="var(--primary)"
+              empty="Chưa có dữ liệu hỗ trợ trong khoảng này."
+            />
+          </div>
+          <div className="card">
+            <b>🙋 Khách hỏi nhiều nhất</b>
+            <p className="muted" style={{ margin: "2px 0 10px" }}>Top người gửi mail cần hỗ trợ</p>
+            <BarChart rows={support?.topSenders} color="var(--accent)" empty="Chưa có dữ liệu." />
+          </div>
+        </div>
       </div>
     </div>
   );

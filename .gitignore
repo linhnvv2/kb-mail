@@ -10,3 +10,5 @@ data/users.json
 data/settings.json
 data/imports/
 data/logs/
+data/inbox-cache.json
+data/tasks.json
